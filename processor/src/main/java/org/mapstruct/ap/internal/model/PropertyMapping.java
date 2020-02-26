@@ -10,16 +10,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 
-import org.mapstruct.ap.internal.model.assignment.AdderWrapper;
-import org.mapstruct.ap.internal.model.assignment.ArrayCopyWrapper;
-import org.mapstruct.ap.internal.model.assignment.EnumConstantWrapper;
-import org.mapstruct.ap.internal.model.assignment.GetterWrapperForCollectionsAndMaps;
-import org.mapstruct.ap.internal.model.assignment.SetterWrapper;
-import org.mapstruct.ap.internal.model.assignment.StreamAdderWrapper;
-import org.mapstruct.ap.internal.model.assignment.UpdateWrapper;
+import org.mapstruct.ap.internal.model.assignment.*;
 import org.mapstruct.ap.internal.model.common.Assignment;
 import org.mapstruct.ap.internal.model.common.BuilderType;
 import org.mapstruct.ap.internal.model.common.FormattingParameters;
@@ -291,6 +286,9 @@ public class PropertyMapping extends ModelElement {
                     ( sourceType.isStreamType() && targetType.isStreamType() ) ||
                     ( sourceType.isStreamType() && targetType.isIterableType() ) ) {
                     assignment = forgeStreamMapping( sourceType, targetType, rightHandSide, method.getExecutable() );
+                }
+                else if( sourceType.isOptionalType() || targetType.isOptionalType() ){
+                    assignment = forgeOptionalMapping( sourceType, targetType, rightHandSide, method.getExecutable() );
                 }
                 else {
                     assignment = forgeMapping( rightHandSide );
@@ -624,6 +622,27 @@ public class PropertyMapping extends ModelElement {
 
             IterableMappingMethod.Builder builder = new IterableMappingMethod.Builder();
             return forgeWithElementMapping( sourceType, targetType, source, element, builder );
+        }
+
+        private Assignment forgeOptionalMapping(Type sourceType, Type targetType, SourceRHS source,
+                                                ExecutableElement element) {
+
+            OptionalMappingMethod.Builder2 builder = new OptionalMappingMethod.Builder2();
+            builder.sourceType(sourceType)
+                    .targetType(targetType)
+                    .mappingContext(ctx)
+                    .method(method);
+
+            Assignment elementAssignment = builder.build();
+
+            OptionalWrapper result = new OptionalWrapper(ctx.getTypeFactory(), sourceType, builder.isSourceOptional(), builder.getSourceElementType(),
+                    targetType, builder.isTargetOptional(), builder.getTargetElementType(),
+                    source,
+                    elementAssignment, false);
+
+            result.getImportTypes().add(ctx.getTypeFactory().getType(Optional.class));
+            return result;
+
         }
 
         private Assignment forgeWithElementMapping(Type sourceType, Type targetType, SourceRHS source,
